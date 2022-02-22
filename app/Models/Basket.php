@@ -26,28 +26,17 @@ class Basket
      */
     public function addProduct(Product $product, int $quantity = 1): Basket
     {
-
         $this->total = $this->total + ($product->unitPrice * $quantity);
 
         if (array_key_exists($product->sku, $this->products)) {
-            $this->products[$product->sku] = [
-                'product' => $product,
-                'quantity' => $this->products[$product->sku]['quantity'] + $quantity,
-                'baseTotalPrice' => $this->products[$product->sku]['quantity'] * $product->unitPrice,
-            ];
+            $this->products[$product->sku]->increaseQuantity($quantity);
             return $this;
         }
 
-        $this->products[$product->sku] = [
-            'product' => $product,
-            'quantity' => $quantity,
-            'baseTotalPrice' => $product->unitPrice * $quantity,
-            'discountValue' => 0,
-            'discountedProducts' => 0,
-            'promotionUsed' => null,
-        ];
-        return $this;
+        $basketProduct = new BasketProduct($product, $quantity);
+        $this->products[$product->sku] = $basketProduct;
 
+        return $this;
     }
 
     /**
@@ -66,29 +55,10 @@ class Basket
      */
     public function applyDiscountToProduct(ProductPromotion $productPromotion): void
     {
-        $basketProduct = $this->products[$productPromotion->productSku];
-        switch ($productPromotion->type) {
-            case ProductPromotion::$bundle:
-                $noOfItemsToDiscount = min($basketProduct['quantity'], $this->getQuantityByProduct($this->products[$productPromotion->productBundleSku]['product']));
-                $basketProduct['discountValue'] = $noOfItemsToDiscount * ($basketProduct['product']->unitPrice - $productPromotion->price);
-                $basketProduct['discountedProducts'] = $noOfItemsToDiscount;
-                $basketProduct['promotionUsed'][] = $productPromotion->id;
-                $this->total -= $basketProduct['discountValue'];
-                $this->products[$productPromotion->productSku] = $basketProduct;
-                break;
-            case ProductPromotion::$stockup:
-                $undiscountedProducts = $basketProduct['quantity'] - $basketProduct['discountedProducts'];
-                if ($undiscountedProducts >= $productPromotion->productQuantity) {
-                    $itemsReminder = $undiscountedProducts % $productPromotion->productQuantity;
-                    $noOfItemsToDiscount = $undiscountedProducts - $itemsReminder;
-                    $basketProduct['discountValue'] = ($basketProduct['product']->unitPrice * $noOfItemsToDiscount) - ($noOfItemsToDiscount / $productPromotion->productQuantity * $productPromotion->price);
-                    $basketProduct['discountedProducts'] = $noOfItemsToDiscount;
-                    $basketProduct['promotionUsed'][] = $productPromotion->id;
-                    $this->total -= $basketProduct['discountValue'];
-                    $this->products[$productPromotion->productSku] = $basketProduct;
-                }
-                break;
-        }
+        $basketProduct = $this->products[$productPromotion->productSku]->processProductPromotion($productPromotion, $productPromotion->productBundleSku && array_key_exists($productPromotion->productBundleSku, $this->products) ? $this->products[$productPromotion->productBundleSku] : null);
+        $this->total -= $basketProduct->discountValue;
+        $this->products[$productPromotion->productSku] = $basketProduct;
+        $this->discountTotal =+ $basketProduct->discountValue;
     }
 
     /**
