@@ -13,7 +13,7 @@ class Basket
     public $total;
 
     /**
-     * Only used to set total to 0
+     * Only reason to overwrite is to set total to 0
      */
     public function __construct() {
         $this->total = 0;
@@ -59,7 +59,12 @@ class Basket
         return array_key_exists($product->sku, $this->products) ? $this->products[$product->sku]['quantity'] : null;
     }
 
-    public function applyDiscountToProduct(ProductPromotion $productPromotion)
+    /**
+     * Calculates discounted values of products in basket
+     * @param ProductPromotion $productPromotion
+     * @return void
+     */
+    public function applyDiscountToProduct(ProductPromotion $productPromotion): void
     {
         $basketProduct = $this->products[$productPromotion->productSku];
         switch ($productPromotion->type) {
@@ -69,20 +74,28 @@ class Basket
                 $basketProduct['discountedProducts'] = $noOfItemsToDiscount;
                 $basketProduct['promotionUsed'][] = $productPromotion->id;
                 $this->total -= $basketProduct['discountValue'];
+                $this->products[$productPromotion->productSku] = $basketProduct;
                 break;
             case ProductPromotion::$stockup:
-                if ($basketProduct['quantity'] - $basketProduct['discountedProducts'] >= $productPromotion->productQuantity) {
-                    $itemsReminder = $basketProduct['quantity'] % $productPromotion->productQuantity;
-                    $noOfItemsToDiscount = $basketProduct['quantity'] - $itemsReminder;
-                    $basketProduct['discountValue'] = $noOfItemsToDiscount * $productPromotion->getSavingOnAUnit($basketProduct['product']);
+                $undiscountedProducts = $basketProduct['quantity'] - $basketProduct['discountedProducts'];
+                if ($undiscountedProducts >= $productPromotion->productQuantity) {
+                    $itemsReminder = $undiscountedProducts % $productPromotion->productQuantity;
+                    $noOfItemsToDiscount = $undiscountedProducts - $itemsReminder;
+                    $basketProduct['discountValue'] = ($basketProduct['product']->unitPrice * $noOfItemsToDiscount) - ($noOfItemsToDiscount / $productPromotion->productQuantity * $productPromotion->price);
                     $basketProduct['discountedProducts'] = $noOfItemsToDiscount;
                     $basketProduct['promotionUsed'][] = $productPromotion->id;
                     $this->total -= $basketProduct['discountValue'];
+                    $this->products[$productPromotion->productSku] = $basketProduct;
                 }
                 break;
         }
     }
 
+    /**
+     * Starts basket processing - only applies discount for now
+     * @param $productPromotions
+     * @return $this
+     */
     public function processBasket($productPromotions): Basket
     {
         foreach ($productPromotions as $productPromotion) {

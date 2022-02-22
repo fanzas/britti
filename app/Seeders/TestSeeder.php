@@ -5,6 +5,9 @@
  */
 class TestSeeder
 {
+    /**
+     * @return Product[]
+     */
     public static function seedProducts() {
         return [
             '1A' => new Product('1A', 'Shovel', 50),
@@ -15,6 +18,9 @@ class TestSeeder
         ];
     }
 
+    /**
+     * @return ProductPromotion[] of ProductPromotions with key being the promotion id
+     */
     public static function seedProductPromotions() {
         //array key will ba an id, since this is how We would get certain discounts from the database by id
         return [

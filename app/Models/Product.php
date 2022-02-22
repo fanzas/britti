@@ -6,6 +6,11 @@ class Product
     public $name;
     public $unitPrice;
 
+    /**
+     * @param $sku
+     * @param $name
+     * @param $unitPrice
+     */
     public function __construct($sku, $name, $unitPrice) {
         $this->sku = $sku;
         $this->name = $name;
